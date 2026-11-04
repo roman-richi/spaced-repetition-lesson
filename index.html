@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spaced Repetition: A 5-Minute Lesson</title>
+<meta name="description" content="A 5-minute interactive lesson on spaced repetition for adult learners.">
+<link rel="icon" href="data:,">
+<style>
+  @font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-400.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Atkinson Hyperlegible"; src: url(fonts/atkinson-700.woff2) format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Bricolage Grotesque"; src: url(fonts/bricolage-wght.woff2) format("woff2"); font-weight: 200 800; font-display: swap; }
+
+  :root {
+    color-scheme: light;
+    --ink: #37162f;
+    --muted: #6b4a5b;
+    --page: #fff1d0;
+    --panel: #fffaf0;
+    --line: #eed7ad;
+    --flame: #ef6a1f;
+    --gold: #ffb627;
+    --ember: #b8234a;
+    --log: #6e3b2a;
+    --good: #256a3c;
+    --good-tint: #e4f2dc;
+    --bad-tint: #fde3e2;
+    --display: "Bricolage Grotesque", "Atkinson Hyperlegible", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 400 1.125rem/1.55 "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body.dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+
+  .page { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  .sprite { position: absolute; width: 0; height: 0; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* Progress */
+  .progress-text { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 1rem; margin: 0 0 .5rem; color: var(--muted); font-size: 1rem; }
+  .progress-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 2.25rem; }
+  .progress-bar span { height: 6px; border-radius: 3px; background: var(--line); }
+  .progress-bar span.done { background: var(--flame); }
+
+  /* Type */
+  h1, h2 {
+    margin: 0 0 .75rem;
+    font-family: var(--display);
+    font-weight: 750;
+    font-size: clamp(2rem, 6.5vw, 2.875rem);
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+    outline: none;
+  }
+  h2.question { font-size: clamp(1.45rem, 4.5vw, 1.75rem); font-weight: 700; line-height: 1.2; letter-spacing: -.01em; text-wrap: pretty; }
+  h3 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 1.2rem; line-height: 1.2; }
+  p { margin: 0 0 1rem; }
+  .lead { font-size: 1.25rem; line-height: 1.45; }
+  .small { color: var(--muted); font-size: 1rem; }
+
+  /* Step 1: the fire */
+  .hero { display: grid; grid-template-columns: 1fr 15rem; gap: 1.5rem; align-items: center; }
+  .fire-box { text-align: center; }
+  .fire {
+    display: block;
+    width: 100%;
+    max-width: 15rem;
+    margin: 0 auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .fire svg { display: block; width: 100%; height: auto; }
+  .fire .flame-g { transform-origin: 100px 172px; transform: scale(.22); }
+  .fire-status { min-height: 4.6em; margin: .5rem 0 0; font-size: 1rem; line-height: 1.35; }
+
+  .ideas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin: 2rem 0 0; padding: 0; list-style: none; }
+  .ideas svg { display: block; width: 100%; max-width: 9rem; height: auto; margin-bottom: .6rem; }
+  .ideas p { margin: .2rem 0 0; color: var(--muted); font-size: 1rem; line-height: 1.35; }
+
+  /* Curve */
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); margin: 1.25rem 0 1rem; padding: 0; border: 0; }
+  .plans input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .plans label {
+    display: flex; align-items: center; justify-content: center;
+    padding: .65rem .4rem;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    margin-left: -2px;
+    text-align: center; line-height: 1.2; font-weight: 700;
+    cursor: pointer;
+  }
+  .plans label:first-of-type { margin-left: 0; border-radius: 999px 0 0 999px; }
+  .plans label:last-of-type { border-radius: 0 999px 999px 0; }
+  .plans input:checked + label { background: var(--ink); color: var(--panel); }
+  .plans input:focus-visible + label { outline: 3px solid var(--flame); outline-offset: 2px; position: relative; z-index: 1; }
+  .chart-title { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .1rem 1rem; margin: 0 0 .25rem; font-size: 1rem; font-weight: 700; }
+  .key { display: flex; gap: 1rem; font-weight: 400; color: var(--muted); }
+  .key span { display: inline-flex; align-items: center; gap: .4rem; }
+  .key svg { display: block; }
+  .curve { width: 100%; }
+  .curve svg { display: block; width: 100%; }
+  .curve text { fill: var(--muted); font: 400 13px "Atkinson Hyperlegible", system-ui, sans-serif; }
+  .curve text.marker-label { fill: var(--ink); font-weight: 700; }
+  .curve-area { transition: opacity .9s; }
+  .caption { margin: .75rem 0 .5rem; padding: .75rem 1rem; background: var(--panel); border-radius: 12px; min-height: 5.6em; }
+
+  /* Scenario */
+  .strip { display: grid; grid-template-columns: repeat(22, 1fr); gap: 2px; align-items: end; height: 2.25rem; margin: 1.25rem 0 .25rem; }
+  .strip i { display: block; height: .5rem; border-radius: 2px; background: var(--line); }
+  .strip i.past { background: var(--gold); }
+  .strip svg { display: block; justify-self: center; width: min(130%, 1.35rem); height: auto; }
+  .strip svg.later { opacity: .3; filter: grayscale(1); }
+  .strip .exam-mark { height: 1.1rem; background: var(--ember); }
+  .strip-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: .9375rem; }
+  .scene { display: grid; grid-template-columns: 11rem 1fr; gap: 1.25rem; align-items: center; margin-top: 1rem; padding: 1rem 1.25rem; background: var(--panel); border-radius: 20px; }
+  .scene svg { display: block; width: 100%; height: auto; }
+  .scene .thought { transform-origin: 110px 66px; transition: transform .6s cubic-bezier(.3, 1.5, .5, 1); }
+  .scene-text { min-height: 11.5rem; }
+  .scene-text h3 { margin-bottom: .35rem; font-size: 1.4rem; }
+  .scene-text p { margin: 0 0 .75rem; }
+  .meter { height: 12px; border-radius: 6px; background: var(--line); overflow: hidden; }
+  .meter span { display: block; height: 100%; border-radius: 6px; background: var(--flame); transition: width .5s ease-out; }
+  .meter-label { display: block; margin-top: .25rem; font-weight: 700; font-size: 1rem; }
+
+  /* Quiz: options */
+  .options { display: grid; gap: .6rem; margin: 1.25rem 0; }
+  .option {
+    display: flex; justify-content: space-between; gap: 1rem;
+    width: 100%; padding: .85rem 1.1rem;
+    background: var(--panel); color: var(--ink);
+    border: 2px solid var(--ink); border-radius: 14px;
+    font: inherit; text-align: left; cursor: pointer;
+  }
+  .option:hover:not(:disabled) { background: #ffe4a8; }
+  .option:disabled { cursor: default; color: var(--muted); border-color: var(--line); }
+  .option.correct { color: var(--ink); background: var(--good-tint); border-color: var(--good); }
+  .option.wrong { color: var(--ink); background: var(--bad-tint); border-color: var(--ember); }
+  .tag { flex: none; font-size: 1rem; font-weight: 700; }
+  .correct .tag { color: var(--good); }
+  .wrong .tag { color: var(--ember); }
+
+  .feedback { margin: 0 0 .5rem; padding: .85rem 1.1rem; border-radius: 14px; }
+  .feedback p { margin: 0; }
+  .feedback strong { display: block; }
+  .feedback.good { background: var(--good-tint); }
+  .feedback.bad { background: var(--bad-tint); }
+  .feedback.hint { background: var(--panel); }
+
+  /* Quiz: schedule builder */
+  .tray { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; min-height: 3.5rem; margin: 1rem 0 .5rem; }
+  .tokens { display: flex; gap: .4rem; }
+  .token {
+    display: grid; place-items: center;
+    width: 3rem; height: 3.25rem;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    border-radius: 12px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  .token svg { width: 1.6rem; height: auto; display: block; pointer-events: none; }
+  .tray-hint { color: var(--muted); font-size: 1rem; line-height: 1.3; }
+
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .day {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 3.25rem; padding: 0;
+    background: var(--panel); color: var(--ink);
+    border: 2px solid var(--line); border-radius: 10px;
+    font: inherit; font-size: 1rem; line-height: 1;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .day:hover:not(:disabled) { border-color: var(--ink); }
+  .day.on { background: #ffe4a8; border-color: var(--flame); cursor: grab; touch-action: none; }
+  .day.on svg { width: 1.15rem; height: auto; margin-bottom: 2px; pointer-events: none; }
+  .day.on span { font-size: .875rem; font-weight: 700; pointer-events: none; }
+  .day.over { border-color: var(--ink); background: #ffe4a8; border-style: dashed; }
+  .day:disabled { cursor: default; border-color: transparent; color: var(--panel); font-weight: 700; }
+  .day.learn { background: var(--log); font-size: .875rem; }
+  .day.exam { grid-column: 2 / -1; background: var(--ember); height: 2.75rem; }
+  .day.pop svg { animation: pop .3s cubic-bezier(.3, 1.8, .5, 1); }
+  @keyframes pop { from { transform: scale(.3); } to { transform: scale(1); } }
+  .ghost { position: fixed; left: 0; top: 0; z-index: 10; width: 2.5rem; pointer-events: none; }
+  .ghost svg { display: block; width: 100%; height: auto; }
+  #sched-fb { margin-top: .75rem; }
+  #sched-fb .feedback { min-height: 5.1em; }
+  .text-btn { margin-top: .4rem; padding: 0; background: none; border: 0; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+  .mini { margin-top: .75rem; }
+
+  /* Result */
+  .tally { display: flex; gap: 1.25rem; margin: 0 0 1.25rem; padding: 0; list-style: none; }
+  .tally li { width: 5.5rem; font-size: 1rem; line-height: 1.25; }
+  .tally svg { display: block; width: 2.5rem; height: auto; margin-bottom: .3rem; }
+  .tally .out svg { opacity: .3; filter: grayscale(1); }
+  .plan-list { margin: 1rem 0 0; padding: 0; list-style: none; }
+  .plan-list li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .6rem 0; border-top: 2px solid var(--line); }
+  .plan-list li:last-child { border-bottom: 2px solid var(--line); }
+  .plan-list li > span:first-child { display: inline-flex; align-items: center; gap: .5rem; }
+  .plan-list svg { width: .9rem; height: auto; }
+  .plan-list li > span:last-child { color: var(--muted); text-align: right; }
+  .section-head { margin: 2rem 0 .35rem; font-family: var(--display); font-size: 1.4rem; font-weight: 700; }
+
+  /* Navigation */
+  .nav { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1.75rem; }
+  button.primary, button.quiet { padding: .75rem 1.4rem; border-radius: 999px; border: 2px solid var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+  button.primary { background: var(--gold); color: var(--ink); }
+  button.primary:hover { background: #ffa40a; }
+  button.quiet { background: transparent; color: var(--ink); }
+  button.quiet:hover { background: var(--panel); }
+  button:focus-visible { outline: 3px solid var(--flame); outline-offset: 2px; }
+
+  @media (max-width: 36rem) {
+    .hero { grid-template-columns: 1fr; gap: .5rem; }
+    .fire { max-width: 12rem; }
+    .fire-status { min-height: 3.4em; }
+    .ideas { grid-template-columns: 1fr; gap: .9rem; }
+    .ideas li { display: grid; grid-template-columns: 5.5rem 1fr; gap: .9rem; align-items: center; }
+    .ideas svg { margin: 0; }
+    .scene { grid-template-columns: 1fr; padding: 1rem; }
+    .scene svg { max-width: 9rem; margin: 0 auto; }
+    .scene-text { min-height: 12.5rem; }
+    .caption { min-height: 8em; }
+    .option { flex-direction: column; gap: .25rem; }
+    #sched-fb .feedback { min-height: 8em; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scene .thought, .meter span, .curve-area { transition: none; }
+    .day.pop svg { animation: none; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .curve .main-line { transition: stroke-dashoffset .9s ease-out; }
+  }
+</style>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="flame" viewBox="0 0 24 32">
+    <path fill="#ef6a1f" d="M13 0c1 6 9 10 9 20a10 10 0 0 1-20 0c0-5 3-8 5-11 1 2 2 3 3 4 2-4 4-8 3-13Z"/>
+    <path fill="#ffb627" d="M12.500 14c1 4 4.500 5 4.500 10a5 5 0 0 1-10 0c0-3 2-4 3-6 1 1 2 0 2.500-4Z"/>
+  </symbol>
+</svg>
+
+<main class="page">
+  <div class="progress-text"><span id="step-label"></span><span id="time-label"></span></div>
+  <div class="progress-bar" id="progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <div id="screen"></div>
+  <noscript><p>This lesson needs JavaScript to run. Please turn it on and reload the page.</p></noscript>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const flameIcon = (cls) => `<svg ${cls ? `class="${cls}"` : ''} viewBox="0 0 24 32" aria-hidden="true"><use href="#flame"/></svg>`;
+
+  /* ---------- Content ---------- */
+
+  const STEPS = [
+    { label: 'The idea', time: 'About 5 minutes in total' },
+    { label: 'See it work', time: 'About 4 minutes left' },
+    { label: 'A student’s exam', time: 'About 3 minutes left' },
+    { label: 'Quiz', time: 'About 2 minutes left' }
+  ];
+
+  const IDEAS = [
+    {
+      title: 'Memories fade fast',
+      text: 'Forgetting is steepest in the first few days.',
+      art: `<svg viewBox="0 0 144 72" aria-hidden="true">
+        <use href="#flame" x="8" y="6" width="45" height="60"/>
+        <use href="#flame" x="66" y="30" width="27" height="36" opacity=".65"/>
+        <use href="#flame" x="108" y="50" width="12" height="16" opacity=".35"/>
+        <rect x="0" y="66" width="144" height="5" rx="2.500" fill="#6e3b2a"/>
+      </svg>`
+    },
+    {
+      title: 'Recalling rekindles them',
+      text: 'Testing yourself beats rereading.',
+      art: `<svg viewBox="0 0 144 72" aria-hidden="true">
+        <g transform="rotate(-6 50 38)">
+          <rect x="6" y="10" width="84" height="56" rx="7" fill="#fffaf0" stroke="#37162f" stroke-width="2.500"/>
+          <text x="48" y="52" text-anchor="middle" font-family="Bricolage Grotesque, sans-serif" font-size="38" font-weight="750" fill="#b8234a">?</text>
+        </g>
+        <use href="#flame" x="100" y="16" width="39" height="52"/>
+      </svg>`
+    },
+    {
+      title: 'Each review lasts longer',
+      text: 'So the gaps between reviews can grow.',
+      art: `<svg viewBox="0 0 144 72" aria-hidden="true">
+        <rect x="0" y="56" width="144" height="5" rx="2.500" fill="#6e3b2a"/>
+        <use href="#flame" x="0" y="26" width="23" height="30"/>
+        <use href="#flame" x="24" y="26" width="23" height="30"/>
+        <use href="#flame" x="62" y="26" width="23" height="30"/>
+        <use href="#flame" x="121" y="26" width="23" height="30"/>
+      </svg>`
+    }
+  ];
+
+  const PLANS = {
+    none: { reviews: [], caption: '<strong>No reviews.</strong> You learn it once and move on. Much of the detail is gone within days.' },
+    cram: { reviews: [1, 1.02, 1.04], caption: '<strong>Cramming.</strong> Three reviews, all on day 1. You would do well on a test the next day, but a month later almost nothing is left.' },
+    spaced: { reviews: [1, 3, 7, 16], caption: '<strong>Spaced.</strong> Four short reviews, with growing gaps. Each one makes the memory fade more slowly, so on day 30 you still remember most of it.' }
+  };
+
+  const REVIEW_DAYS = [1, 3, 7, 14];
+  const SCENES = [
+    { day: 0, title: 'Day 0: three weeks to go', text: 'Ana has a biology exam on day 21 and 40 terms to learn. Ana studies them once and closes the book.', got: null, level: 1 },
+    { day: 1, title: 'Day 1: first review', text: 'Ana tests with flashcards, answering before flipping each one. It feels hard, which is normal.', got: 24, level: .5 },
+    { day: 3, title: 'Day 3: second review', text: 'The cards Ana missed go to the front of the pile. More of them come back this time.', got: 29, level: .62 },
+    { day: 7, title: 'Day 7: third review', text: 'A longer gap, and the terms still come back, with a little effort.', got: 33, level: .75 },
+    { day: 14, title: 'Day 14: fourth review', text: 'A week has passed since the last review. Most cards now come back quickly.', got: 37, level: .88 },
+    { day: 21, title: 'Day 21: exam day', text: 'No all-nighter. Four reviews of about 20 minutes each, and Ana walks in knowing nearly all of it.', got: 38, level: 1 }
+  ];
+
+  const QUESTIONS = [
+    {
+      text: 'Ana sits down for a review. Which approach will do the most for Ana’s memory?',
+      options: [
+        { text: 'Read the highlighted notes again', why: 'Rereading feels productive because the words look familiar, but that is recognizing them, not recalling them. Try to recall first, then check.' },
+        { text: 'Close the notes, write down what comes to mind, then check', correct: true, why: 'Pulling information out of memory strengthens it, and checking shows what to work on next.' },
+        { text: 'Rewatch the lecture at double speed', why: 'This is still taking information in, not bringing it back out. Recall from memory before looking at the material again.' }
+      ]
+    },
+    {
+      text: 'Ana has recalled the same term easily in the last three reviews. What should happen next?',
+      options: [
+        { text: 'Review it every day so that it doesn’t slip', why: 'Reviewing something that comes easily adds little and takes time from harder terms. A longer gap will serve Ana better.' },
+        { text: 'Remove it from the pile, because it has been learned', why: 'Easy recall now doesn’t mean it will last for good. Keep it in the pile, with a longer gap.' },
+        { text: 'Wait longer than last time before reviewing it again', correct: true, why: 'Easy recall means the memory can handle a longer gap. If Ana ever misses it, the gap can shrink again.' }
+      ]
+    }
+  ];
+  const QUESTION_COUNT = QUESTIONS.length + 1; // the schedule builder is the last question
+  const REVIEW_COUNT = 4;
+  const EXAM_DAY = 21;
+  const GOOD_SCHEDULE = [1, 3, 7, 14];
+
+  /* ---------- State ---------- */
+
+  const fresh = () => ({
+    step: 0, plan: 'none', scene: 0, question: 0, answers: [null, null], days: [], firstTry: null, done: false
+  });
+  let state = fresh();
+  const screen = document.getElementById('screen');
+  let redraw = null;
+  let observer = null;
+  let fire = { n: 0, at: 0, burn: 0 };
+
+  const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  function fmtDay(offset) {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  /* ---------- Memory model (an illustration, not measured data) ---------- */
+
+  const FLOOR = 0.08;
+  const retained = (gap, strength) => FLOOR + (1 - FLOOR) * Math.exp(-gap / strength);
+
+  // A review resets recall to full. The more a memory had faded, the more
+  // the review strengthens it, so a review seconds later adds almost nothing.
+  function curve(reviews, horizon) {
+    const pts = [[0, 1]];
+    let strength = 2, last = 0;
+    reviews.concat([horizon]).forEach((r, i, all) => {
+      for (let t = last + 0.1; t < r; t += 0.1) pts.push([t, retained(t - last, strength)]);
+      pts.push([r, retained(r - last, strength)]);
+      if (i < all.length - 1) {
+        strength *= 1 + 4 * (1 - Math.exp(-(r - last) / strength));
+        pts.push([r, 1]);
+        last = r;
+      }
+    });
+    return pts;
+  }
+
+  function drawCurve(box, o) {
+    if (!box) return;
+    const w = Math.max(box.clientWidth, 280);
+    const h = o.height;
+    const m = { top: o.labels ? 42 : 22, right: 12, bottom: 26, left: 44 };
+    const iw = w - m.left - m.right, ih = h - m.top - m.bottom;
+    const x = (d) => m.left + (d / o.horizon) * iw;
+    const y = (r) => m.top + (1 - r) * ih;
+    const line = (pts) => 'M' + pts.map((p) => x(p[0]).toFixed(1) + ' ' + y(p[1]).toFixed(1)).join('L');
+    const pts = curve(o.reviews, o.horizon);
+    const d = line(pts);
+
+    let s = `<svg viewBox="0 0 ${w} ${h}" height="${h}" role="img" aria-label="${o.alt}">
+      <defs><linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb627" stop-opacity=".55"/><stop offset="1" stop-color="#ffb627" stop-opacity=".05"/></linearGradient></defs>`;
+    [0.5, 0].forEach((r) => {
+      s += `<line x1="${m.left}" x2="${w - m.right}" y1="${y(r)}" y2="${y(r)}" stroke="var(--line)" stroke-width="1.5"/>`;
+    });
+    s += `<text x="${m.left - 8}" y="${y(1) + 4}" text-anchor="end">All</text><text x="${m.left - 8}" y="${y(0) + 4}" text-anchor="end">None</text>`;
+    o.ticks.forEach((t) => {
+      const anchor = t === 0 ? 'start' : t === o.horizon ? 'end' : 'middle';
+      s += `<text x="${x(t)}" y="${h - 6}" text-anchor="${anchor}">${t === 0 ? 'Day 0' : t === EXAM_DAY && o.horizon === EXAM_DAY ? 'Exam' : t}</text>`;
+    });
+    if (o.ghost) {
+      s += `<path d="${line(curve([], o.horizon))}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+    }
+    s += `<path class="curve-area" d="${d}L${x(o.horizon)} ${y(0)}L${x(0)} ${y(0)}Z" fill="url(#warm)"/>`;
+    s += `<path class="main-line" d="${d}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>`;
+
+    const marks = [...new Set(o.reviews.map(Math.round))];
+    marks.forEach((r) => {
+      s += `<use href="#flame" x="${x(r) - 8}" y="${y(1) - 19}" width="16" height="21"/>`;
+    });
+    if (o.labels) {
+      if (marks.length < o.reviews.length) {
+        s += `<text class="marker-label" x="${x(marks[0]) + 12}" y="${y(1) - 6}">${o.reviews.length} reviews on day ${marks[0]}</text>`;
+      } else {
+        marks.forEach((r) => { s += `<text class="marker-label" x="${x(r)}" y="${y(1) - 24}" text-anchor="middle">${r}</text>`; });
+      }
+    }
+    box.innerHTML = s + '</svg>';
+
+    const main = box.querySelector('.main-line');
+    if (o.animate && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+      const len = main.getTotalLength();
+      const area = box.querySelector('.curve-area');
+      main.style.strokeDasharray = len;
+      main.style.strokeDashoffset = len;
+      area.style.opacity = 0;
+      main.getBoundingClientRect();
+      main.style.strokeDashoffset = 0;
+      area.style.opacity = 1;
+    }
+  }
+
+  function watchSize(box) {
+    if (!window.ResizeObserver) return;
+    let lastW = box.clientWidth;
+    observer = new ResizeObserver(() => {
+      if (box.clientWidth !== lastW && redraw) { lastW = box.clientWidth; redraw(false); }
+    });
+    observer.observe(box);
+  }
+
+  /* ---------- Step 1: the idea ---------- */
+
+  const nav = (back, nextLabel) => `<div class="nav">
+    <button class="primary" data-go="next">${nextLabel}</button>
+    ${back ? '<button class="quiet" data-go="back">Back</button>' : ''}</div>`;
+
+  function ideaScreen() {
+    const ideas = IDEAS.map((i) => `<li>${i.art}<div><h3>${i.title}</h3><p>${i.text}</p></div></li>`).join('');
+    return `<div class="hero">
+        <div>
+          <h1 tabindex="-1">Spaced repetition keeps a memory from burning out</h1>
+          <p class="lead">Review what you learn several times, and leave a longer gap each time.</p>
+        </div>
+        <div class="fire-box">
+          <button class="fire" id="fire" aria-label="Add a review to the fire">
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <circle cx="100" cy="104" r="96" fill="#ffe4a8"/>
+              <g class="flame-g" id="flame-g"><use href="#flame" x="40" y="10" width="120" height="162"/></g>
+              <rect x="44" y="162" width="112" height="16" rx="8" fill="#6e3b2a" transform="rotate(10 100 170)"/>
+              <rect x="44" y="162" width="112" height="16" rx="8" fill="#37162f" transform="rotate(-10 100 170)"/>
+            </svg>
+          </button>
+          <p class="fire-status" id="fire-status" role="status"><strong>Tap the fire to review.</strong></p>
+        </div>
+      </div>
+      <ul class="ideas">${ideas}</ul>
+      ${nav(false, 'See it work')}`;
+  }
+
+  const BURNS = [3, 6, 12, 24];
+  function tendFire() {
+    const flame = document.getElementById('flame-g');
+    const status = document.getElementById('fire-status');
+    const now = performance.now();
+    const tooSoon = fire.n > 0 && now - fire.at < fire.burn * 1000 * 0.6;
+    if (!tooSoon && fire.n < BURNS.length) fire.n++;
+    const burn = BURNS[fire.n - 1];
+    fire.at = now;
+    fire.burn = burn;
+    flame.style.transition = 'none';
+    flame.style.transform = 'scale(1)';
+    flame.getBoundingClientRect();
+    flame.style.transition = `transform ${burn}s linear`;
+    flame.style.transform = 'scale(.22)';
+    if (tooSoon) {
+      status.innerHTML = '<strong>It was still burning, so that added nothing.</strong> Wait until it burns low.';
+    } else if (fire.n >= BURNS.length) {
+      status.innerHTML = `<strong>It now burns for ${burn} seconds.</strong> Each well-timed review buys more time.`;
+    } else {
+      status.innerHTML = `<strong>It burns for ${burn} seconds.</strong> Let it burn low, then tap again.`;
+    }
+  }
+
+  /* ---------- Step 2: the curve ---------- */
+
+  function chartScreen() {
+    const radios = [['none', 'No reviews'], ['cram', 'Cramming'], ['spaced', 'Spaced']].map((p) =>
+      `<input type="radio" name="plan" id="plan-${p[0]}" value="${p[0]}"${state.plan === p[0] ? ' checked' : ''}><label for="plan-${p[0]}">${p[1]}</label>`
+    ).join('');
+    return `<h2 tabindex="-1">Compare three ways to study the same thing</h2>
+      <p>Choose each plan and watch what happens to the memory over 30 days.</p>
+      <fieldset class="plans"><legend class="sr">Study plan</legend>${radios}</fieldset>
+      <div class="chart-title"><span>How much you remember</span><span class="key" id="key"></span></div>
+      <div class="curve" id="chart"></div>
+      <p class="caption" id="caption" role="status"></p>
+      <p class="small">This chart is an illustration of the general pattern, not measured data. It assumes that you recall the material at each review.</p>
+      ${nav(true, 'Follow a student')}`;
+  }
+
+  function updatePlan(animate) {
+    const plan = PLANS[state.plan];
+    document.getElementById('caption').innerHTML = plan.caption;
+    const solid = '<svg width="22" height="6" aria-hidden="true"><line x1="0" x2="22" y1="3" y2="3" stroke="var(--ink)" stroke-width="2.5"/></svg>';
+    const dashed = '<svg width="22" height="6" aria-hidden="true"><line x1="0" x2="22" y1="3" y2="3" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 4"/></svg>';
+    document.getElementById('key').innerHTML = state.plan === 'none'
+      ? `<span>${solid}No reviews</span>`
+      : `<span>${solid}This plan</span><span>${dashed}No reviews</span>`;
+    redraw = (anim) => drawCurve(document.getElementById('chart'), {
+      reviews: plan.reviews, horizon: 30, height: innerWidth < 576 ? 240 : 290, ticks: [0, 7, 14, 21, 30],
+      ghost: state.plan !== 'none', labels: true, animate: anim,
+      alt: 'Line chart of memory over 30 days. ' + plan.caption.replace(/<[^>]+>/g, '')
+    });
+    redraw(animate);
+  }
+
+  /* ---------- Step 3: scenario ---------- */
+
+  function scenarioScreen() {
+    const sc = SCENES[state.scene];
+    let strip = '';
+    for (let d = 0; d <= EXAM_DAY; d++) {
+      if (d === EXAM_DAY) strip += `<i class="exam-mark"></i>`;
+      else if (REVIEW_DAYS.includes(d)) strip += d <= sc.day ? flameIcon() : flameIcon('later');
+      else strip += `<i class="${d <= sc.day ? 'past' : ''}"></i>`;
+    }
+    const meter = sc.got === null
+      ? '<span class="meter-label">No test yet</span>'
+      : `<div class="meter"><span style="width:${(sc.got / 40) * 100}%"></span></div><span class="meter-label">${sc.got} of 40 terms recalled</span>`;
+    const next = state.scene < SCENES.length - 1 ? `Go to day ${SCENES[state.scene + 1].day}` : 'Start the quiz';
+    return `<h2 tabindex="-1">Ana’s biology exam</h2>
+      <div class="strip" aria-hidden="true">${strip}</div>
+      <div class="strip-labels" aria-hidden="true"><span>Day 0</span><span>Exam</span></div>
+      <div class="scene">
+        <svg viewBox="0 0 220 200" aria-hidden="true">
+          <g class="thought" id="thought" style="transform:scale(${sc.level})"><use href="#flame" x="86" y="2" width="48" height="64"/></g>
+          <path d="M74 150c0-26 14-40 36-40s36 14 36 40Z" fill="#b8234a"/>
+          <circle cx="110" cy="90" r="21" fill="#a8663f"/>
+          <path d="M88 90c-2-18 10-27 22-27s24 9 22 27c-4-8-9-12-14-13-9 3-22 3-30 13Z" fill="#37162f"/>
+          <path d="M72 150l38-8 38 8-38 5Z" fill="#fffaf0" stroke="#37162f" stroke-width="2"/>
+          <rect x="164" y="141" width="32" height="9" rx="2" fill="#ffb627" stroke="#37162f" stroke-width="2"/>
+          <rect x="168" y="133" width="32" height="9" rx="2" fill="#fffaf0" stroke="#37162f" stroke-width="2"/>
+          <rect x="10" y="150" width="200" height="10" rx="4" fill="#6e3b2a"/>
+          <rect x="28" y="160" width="10" height="40" fill="#6e3b2a"/>
+          <rect x="182" y="160" width="10" height="40" fill="#6e3b2a"/>
+        </svg>
+        <div class="scene-text" role="status">
+          <h3>${sc.title}</h3>
+          <p>${sc.text}</p>
+          ${meter}
+        </div>
+      </div>
+      <p class="small" style="margin-top:.75rem">Ana and these scores are imagined, to show the typical pattern. The flame shows how strong the memory feels.</p>
+      ${nav(true, next)}`;
+  }
+
+  /* ---------- Step 4: multiple-choice questions ---------- */
+
+  function quizScreen() {
+    const qi = state.question, q = QUESTIONS[qi], picked = state.answers[qi], answered = picked !== null;
+    const opts = q.options.map((o, i) => {
+      let cls = 'option', tag = '';
+      if (answered && o.correct) { cls += ' correct'; tag = '<span class="tag">✓ Best answer</span>'; }
+      else if (answered && i === picked) { cls += ' wrong'; tag = '<span class="tag">✗ Your answer</span>'; }
+      return `<button class="${cls}" data-option="${i}"${answered ? ' disabled' : ''}><span>${escapeHtml(o.text)}</span>${tag}</button>`;
+    }).join('');
+    let feedback = '';
+    if (answered) {
+      const c = q.options[picked];
+      feedback = `<div class="feedback ${c.correct ? 'good' : 'bad'}"><p><strong>${c.correct ? 'That’s right.' : 'Not quite.'}</strong>${escapeHtml(c.why)}</p></div>`;
+    }
+    return `<p class="small">Question ${qi + 1} of ${QUESTION_COUNT}</p>
+      <h2 class="question" tabindex="-1">${escapeHtml(q.text)}</h2>
+      <div class="options">${opts}</div>
+      <div role="status">${feedback}</div>
+      <div class="nav">
+        ${answered ? '<button class="primary" data-go="next">Next question</button>' : ''}
+        <button class="quiet" data-go="back">Back</button>
+      </div>`;
+  }
+
+  /* ---------- Step 4: schedule builder ---------- */
+
+  function assess(days) {
+    const d = [...days].sort((a, b) => a - b);
+    if (!d.length) return { kind: 'hint', title: 'Place the first review.', text: 'How soon should it come after day 0?' };
+    const gaps = d.map((v, i) => v - (i ? d[i - 1] : 0));
+    const left = REVIEW_COUNT - d.length;
+
+    if (d[0] > 3) {
+      const bunched = d[0] >= 10 && !left ? ' Reviews bunched near the exam may get Leo through it, but they won’t last.' : '';
+      return { kind: left ? 'hint' : 'bad', title: `Day ${d[0]} is late for a first review.`, text: `Memories fade fastest at first, so try day 1, 2 or 3.${bunched}` };
+    }
+    for (let i = 1; i < gaps.length; i++) {
+      if (gaps[i] <= gaps[i - 1]) {
+        return { kind: left ? 'hint' : 'bad', title: `The gap before day ${d[i]} isn’t longer than the one before it.`, text: 'Each review lets the memory last longer, so let each gap grow.' };
+      }
+    }
+    if (left) {
+      return { kind: 'hint', title: d.length === 1 ? 'Good, that catches the memory early.' : 'Good, the gaps are growing.', text: `Now leave a longer gap. ${left} more to place.` };
+    }
+    if (d[3] < 10) {
+      return { kind: 'bad', title: `Your last review is on day ${d[3]}.`, text: `That leaves ${EXAM_DAY - d[3]} days with no review. Move it closer to the exam.` };
+    }
+    return { kind: 'good', title: 'That schedule works.', text: `The first review comes early, each gap is longer than the last, and the memory stays strong up to the exam.` };
+  }
+
+  function scheduleScreen() {
+    return `<p class="small">Question ${QUESTION_COUNT} of ${QUESTION_COUNT}</p>
+      <h2 class="question" tabindex="-1">Ana’s friend Leo has the same exam. Build Leo’s review schedule.</h2>
+      <p style="margin:0">Place four reviews on the calendar. The curve and feedback update as you go.</p>
+      <div class="tray" id="tray"></div>
+      <div class="cal" id="cal" role="group" aria-label="Three-week calendar"></div>
+      <div id="sched-fb" role="status"></div>
+      <div class="chart-title mini"><span>Leo’s memory</span></div>
+      <div class="curve" id="mini"></div>
+      <div class="nav" id="sched-nav"></div>`;
+  }
+
+  function updateSchedule(popDay, focusDay) {
+    const days = state.days;
+    const left = REVIEW_COUNT - days.length;
+    let tokens = '';
+    for (let i = 0; i < left; i++) tokens += `<span class="token">${flameIcon()}</span>`;
+    document.getElementById('tray').innerHTML = left
+      ? `<div class="tokens" aria-hidden="true">${tokens}</div><span class="tray-hint">Drag a flame to a day, or tap the day.</span>`
+      : `<span class="tray-hint">All four are placed. Drag a flame to move it, or tap it to take it off.</span>`;
+
+    let cells = '<button class="day learn" disabled aria-label="Day 0: Leo learns the material">Learn</button>';
+    for (let d = 1; d < EXAM_DAY; d++) {
+      const on = days.includes(d);
+      cells += `<button class="day${on ? ' on' : ''}${d === popDay ? ' pop' : ''}" data-day="${d}" aria-pressed="${on}" aria-label="Day ${d}${on ? ', review placed' : ''}">${on ? flameIcon() : ''}<span>${d}</span></button>`;
+    }
+    cells += '<button class="day exam" disabled>Day 21: exam</button>';
+    document.getElementById('cal').innerHTML = cells;
+
+    const a = assess(days);
+    const reveal = a.kind === 'bad' ? '<button class="text-btn" data-go="show-good">Show a good schedule</button>' : '';
+    document.getElementById('sched-fb').innerHTML =
+      `<div class="feedback ${a.kind}"><p><strong>${a.kind === 'good' ? '✓ ' : a.kind === 'bad' ? '✗ ' : ''}${a.title}</strong>${a.text}</p>${reveal}</div>`;
+
+    if (days.length === REVIEW_COUNT && state.firstTry === null) state.firstTry = a.kind === 'good';
+
+    document.getElementById('sched-nav').innerHTML =
+      (state.firstTry !== null ? '<button class="primary" data-go="next">See your result</button>' : '') +
+      '<button class="quiet" data-go="back">Back</button>';
+
+    redraw = (anim) => drawCurve(document.getElementById('mini'), {
+      reviews: [...days].sort((x, y) => x - y), horizon: EXAM_DAY, height: 170, ticks: [0, 7, 14, 21],
+      ghost: false, labels: false, animate: anim,
+      alt: `Line chart of Leo’s memory up to the exam, with reviews on ${days.length ? 'days ' + [...days].sort((x, y) => x - y).join(', ') : 'no days yet'}.`
+    });
+    redraw(false);
+
+    if (focusDay) {
+      const el = document.querySelector(`[data-day="${focusDay}"]`);
+      if (el) el.focus({ preventScroll: true });
+    }
+  }
+
+  function toggleDay(d) {
+    if (state.days.includes(d)) {
+      state.days = state.days.filter((x) => x !== d);
+      updateSchedule(null, d);
+    } else if (state.days.length < REVIEW_COUNT) {
+      state.days.push(d);
+      updateSchedule(d, d);
+    } else {
+      const fb = document.querySelector('#sched-fb .feedback');
+      fb.className = 'feedback hint';
+      fb.innerHTML = '<p><strong>All four reviews are placed.</strong>Take one off first, or drag it to this day.</p>';
+    }
+  }
+
+  /* Dragging uses pointer events, so it works with both mouse and touch. */
+  let drag = null;
+  let skipClick = false;
+  let skipTimer = 0;
+  function ignoreDayClick() {
+    skipClick = true;
+    clearTimeout(skipTimer);
+    skipTimer = setTimeout(() => { skipClick = false; }, 350);
+  }
+
+  const cellAt = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    return el ? el.closest('.day') : null;
+  };
+
+  screen.addEventListener('pointerdown', (e) => {
+    if (e.button) return;
+    const src = e.target.closest('.token, .day:not(:disabled)');
+    if (!src) return;
+    drag = {
+      id: e.pointerId, x: e.clientX, y: e.clientY, active: false, ghost: null, over: null,
+      from: src.dataset.day ? Number(src.dataset.day) : null,
+      draggable: !src.dataset.day || src.classList.contains('on'),
+      touchDay: e.pointerType === 'touch' && src.dataset.day ? Number(src.dataset.day) : null
+    };
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+      drag.touchDay = null;
+      if (!drag.draggable) return;
+      drag.active = true;
+      drag.ghost = document.createElement('div');
+      drag.ghost.className = 'ghost';
+      drag.ghost.innerHTML = flameIcon();
+      document.body.appendChild(drag.ghost);
+      document.body.classList.add('dragging');
+    }
+    drag.ghost.style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 40}px)`;
+    const cell = cellAt(e.clientX, e.clientY);
+    const target = cell && !cell.disabled && !cell.classList.contains('on') ? cell : null;
+    if (drag.over !== target) {
+      if (drag.over) drag.over.classList.remove('over');
+      if (target) target.classList.add('over');
+      drag.over = target;
+    }
+  });
+
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    if (!d.active) {
+      // Browsers can drop the click for a tap that follows a touch drag, so
+      // touch taps act here and the click that may follow is ignored.
+      if (cancelled || d.touchDay === null) return;
+      ignoreDayClick();
+      toggleDay(d.touchDay);
+      return;
+    }
+    d.ghost.remove();
+    document.body.classList.remove('dragging');
+    ignoreDayClick();
+    if (cancelled) { if (d.over) d.over.classList.remove('over'); return; }
+
+    const cell = cellAt(e.clientX, e.clientY);
+    const inCalendar = document.elementFromPoint(e.clientX, e.clientY)?.closest('#cal');
+    if (cell && !cell.disabled && !cell.classList.contains('on')) {
+      const day = Number(cell.dataset.day);
+      state.days = state.days.filter((x) => x !== d.from);
+      state.days.push(day);
+      updateSchedule(day);
+    } else if (cell && cell.disabled) {
+      if (d.over) d.over.classList.remove('over');
+      const fb = document.querySelector('#sched-fb .feedback');
+      fb.className = 'feedback hint';
+      fb.innerHTML = '<p><strong>That day is taken.</strong>Reviews go on the days between learning and the exam.</p>';
+    } else if (!inCalendar && d.from !== null) {
+      state.days = state.days.filter((x) => x !== d.from);
+      updateSchedule();
+    } else if (d.over) {
+      d.over.classList.remove('over');
+    }
+  }
+  document.addEventListener('pointerup', (e) => endDrag(e, false));
+  document.addEventListener('pointercancel', (e) => endDrag(e, true));
+
+  /* ---------- Result ---------- */
+
+  function resultScreen() {
+    const results = [
+      { label: 'How to review', ok: QUESTIONS[0].options[state.answers[0]].correct },
+      { label: 'When to wait longer', ok: QUESTIONS[1].options[state.answers[1]].correct },
+      { label: 'Leo’s schedule', ok: state.firstTry === true }
+    ];
+    const score = results.filter((r) => r.ok).length;
+    const messages = [
+      'Spaced repetition takes some practice. Go back over the lesson, then try the quiz again.',
+      'You have made a start. Try the quiz again tomorrow. That would be a review, too.',
+      'You have most of it. Try the quiz again tomorrow and see whether the one you missed sticks.',
+      'You have the idea. Now try it on something you want to remember.'
+    ];
+    const tally = results.map((r) =>
+      `<li class="${r.ok ? '' : 'out'}">${flameIcon()}${r.ok ? '✓' : '✗'} ${r.label}<span class="sr">${r.ok ? ': correct' : ': incorrect'}</span></li>`
+    ).join('');
+    const plan = [[1, 'Tomorrow'], [3, 'In 3 days'], [7, 'In a week'], [14, 'In 2 weeks']].map((p) =>
+      `<li><span>${flameIcon()}${p[1]}</span><span>${fmtDay(p[0])}</span></li>`
+    ).join('');
+    return `<h2 tabindex="-1">You got ${score} out of ${QUESTION_COUNT}</h2>
+      <ul class="tally">${tally}</ul>
+      <p class="lead">${messages[score]}</p>
+      <p class="section-head">Try it this week</p>
+      <p>Pick one thing you want to remember. Learn it today, then close your notes and try to recall it on these days:</p>
+      <ul class="plan-list">${plan}</ul>
+      <p class="small" style="margin-top:1rem">These gaps are a good place to start, not a fixed rule. If you miss something, review it again sooner.</p>
+      <div class="nav"><button class="primary" data-go="retake">Retake the quiz</button><button class="quiet" data-go="restart">Start the lesson again</button></div>`;
+  }
+
+  /* ---------- Rendering ---------- */
+
+  function render(moveFocus) {
+    const step = state.step;
+    document.getElementById('step-label').textContent = state.done
+      ? 'Lesson complete'
+      : `Step ${step + 1} of ${STEPS.length}: ${STEPS[step].label}`;
+    document.getElementById('time-label').textContent = state.done ? '' : STEPS[step].time;
+    [...document.getElementById('progress').children].forEach((bar, i) => { bar.className = i <= step ? 'done' : ''; });
+
+    if (observer) { observer.disconnect(); observer = null; }
+    redraw = null;
+
+    const isSchedule = step === 3 && !state.done && state.question === QUESTIONS.length;
+    if (step === 0) { fire = { n: 0, at: 0, burn: 0 }; screen.innerHTML = ideaScreen(); }
+    else if (step === 1) screen.innerHTML = chartScreen();
+    else if (step === 2) screen.innerHTML = scenarioScreen();
+    else if (state.done) screen.innerHTML = resultScreen();
+    else screen.innerHTML = isSchedule ? scheduleScreen() : quizScreen();
+
+    if (step === 1) { updatePlan(false); watchSize(document.getElementById('chart')); }
+    if (isSchedule) { updateSchedule(); watchSize(document.getElementById('mini')); }
+
+    if (moveFocus) {
+      window.scrollTo(0, 0);
+      const heading = screen.querySelector('h1, h2');
+      if (heading) heading.focus({ preventScroll: true });
+    }
+  }
+
+  function moveScene(by) {
+    state.scene += by;
+    const thoughtLevel = SCENES[state.scene].level;
+    render(false);
+    // Animate the flame and meter from the previous scene to this one.
+    const thought = document.getElementById('thought');
+    const prev = SCENES[state.scene - by];
+    const meter = screen.querySelector('.meter span');
+    thought.style.transition = 'none';
+    thought.style.transform = `scale(${prev.level})`;
+    if (meter && prev.got !== null) { meter.style.transition = 'none'; meter.style.width = (prev.got / 40) * 100 + '%'; }
+    thought.getBoundingClientRect();
+    thought.style.transition = '';
+    thought.style.transform = `scale(${thoughtLevel})`;
+    if (meter) { meter.style.transition = ''; meter.style.width = (SCENES[state.scene].got / 40) * 100 + '%'; }
+    const btn = screen.querySelector(by > 0 ? '[data-go="next"]' : '[data-go="back"]');
+    if (btn) btn.focus({ preventScroll: true });
+  }
+
+  function goNext() {
+    if (state.step === 2 && state.scene < SCENES.length - 1) return moveScene(1);
+    if (state.step < 3) state.step++;
+    else if (state.question < QUESTION_COUNT - 1) state.question++;
+    else state.done = true;
+    render(true);
+  }
+
+  function goBack() {
+    if (state.step === 2 && state.scene > 0) return moveScene(-1);
+    if (state.step === 3 && state.question > 0) state.question--;
+    else state.step--;
+    render(true);
+  }
+
+  screen.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    if (btn.id === 'fire') return tendFire();
+    if (btn.dataset.day) {
+      if (!skipClick) toggleDay(Number(btn.dataset.day));
+      return;
+    }
+
+    if (btn.dataset.option !== undefined) {
+      state.answers[state.question] = Number(btn.dataset.option);
+      render(false);
+      const next = screen.querySelector('[data-go="next"]');
+      if (next) next.focus({ preventScroll: true });
+      const fb = screen.querySelector('.feedback');
+      if (fb && fb.scrollIntoView) fb.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+
+    switch (btn.dataset.go) {
+      case 'next': goNext(); break;
+      case 'back': goBack(); break;
+      case 'show-good':
+        state.days = [...GOOD_SCHEDULE];
+        updateSchedule();
+        break;
+      case 'retake':
+        Object.assign(state, { question: 0, answers: [null, null], days: [], firstTry: null, done: false });
+        render(true);
+        break;
+      case 'restart':
+        state = fresh();
+        render(true);
+        break;
+    }
+  });
+
+  screen.addEventListener('change', (e) => {
+    if (e.target.name === 'plan') {
+      state.plan = e.target.value;
+      updatePlan(true);
+    }
+  });
+
+  render(false);
+})();
+</script>
+</body>
+</html>
